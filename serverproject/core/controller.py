@@ -465,6 +465,65 @@ class FastPlotController:
 
         # return plot
         return plot_object
+    
+    @classmethod
+    async def generation_step(self, transcript, linked_transcript, video_id):
+        times=[]
+        cost=0
+
+
+        # model_select=utils.ModelNameEnum.llama_3_2_90B_vision_preview
+        model_select=utils.ModelNameEnum.llama_3_70b_8192
+
+
+        # Make Topics
+        # topics_str, major_topics, temp_cost=await services.fast.data_gen.create_topics(transcript, utils.ModelNameEnum.llama_3_1_70B_versatile)
+        topics_str, major_topics, temp_cost=await services.fast.data_gen.create_topics_split(transcript, utils.ModelNameEnum.llama_3_2_90B_vision_preview)
+        cost+=temp_cost
+        t_topics=time.time()
+        times.append({"topics":t_topics})
+        print("Created Topics")
+
+        # Annotate Text batches
+        text_chunks_no_overlap = await services.stream_plot.data_gen.create_text_chunks(transcript, 0)
+        text_chunk_batches = await services.stream_plot.data_gen.generate_text_chunk_batches(text_chunks_no_overlap)
+        responses, annotated_results, temp_cost = await services.fast.data_gen.annotate_all_batches(text_chunk_batches, topics_str, model_select)
+        cost+=temp_cost
+        t_annotations=time.time()
+        times.append({"annotations":t_annotations})
+        print("Annotated Text Batches")
+
+                
+        # Create Plot
+        annotated_segments, category_locations = await services.stream_plot.data_processing.create_segments(linked_transcript, annotated_results, major_topics, transcript)
+        plot_segments=await services.stream_plot.data_processing.annotated_to_plot_segments(annotated_segments)
+        plot_object=await services.stream_plot.data_processing.create_plot_object(plot_segments, category_locations, video_id)
+        t_plot_object=time.time()
+        times.append({"plot_object":t_plot_object})
+        print("Created Plot Object")
+
+        # Annotate Extra
+        model_select=utils.ModelNameEnum.llama_3_2_90B_vision_preview
+        # plot_object, temp_cost=await services.stream_plot.extra_annotations.recap_segments(plot_object, model_select)
+        # cost+=temp_cost
+        t_recap_segments=time.time()+0.0001
+        times.append({"recap_segments":t_recap_segments})
+
+        model_select=utils.ModelNameEnum.llama_3_70b_8192
+        plot_object, temp_cost=await services.stream_plot.extra_annotations.recap_abstractions(plot_object, model_select)
+        cost+=temp_cost
+        t_recap_abstractions=time.time()
+        times.append({"recap_abstractions":t_recap_abstractions})
+        
+
+        print("Created Fast Recap for video_id: ", video_id, " with cost: ", cost)
+
+        for i in range(1,len(times)):
+            print(list(times[i].keys())[0], ": ", list(times[i].values())[0]-list(times[i-1].values())[0])
+
+        print("Total Time: ", list(times[-1].values())[0]-list(times[0].values())[0])
+
+        return plot_object
 
 
 

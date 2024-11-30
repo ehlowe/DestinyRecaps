@@ -5,7 +5,7 @@ from core import utils
 
 
 
-async def recap_segment(category, texts):
+async def recap_segment(category, texts, model_name=utils.ModelNameEnum.gpt_4o_mini):
     if texts==[]:
         return ""
     
@@ -15,16 +15,17 @@ Do not use any fluff, your response does not need to be gramatically correct. St
     user_prompt="Category: "+category+"\n\nText:"
     for text in texts:
         user_prompt+=text+"\n"
+    print("USER PROMPT LEN: ", len(user_prompt))
     full_prompt=[{"role":"system", "content":system_prompt}, {"role":"user", "content":user_prompt}]
-    response, cost = await utils.async_response_handler(full_prompt, utils.ModelNameEnum.gpt_4o_mini)
+    response, cost = await utils.async_response_handler(full_prompt, model_name)
     return response, cost
     
 
-async def recap_segments(plot_object: data_processing.PlotObject):
+async def recap_segments(plot_object: data_processing.PlotObject, model_name=utils.ModelNameEnum.gpt_4o_mini):
     # Produce the segment recaps
     tasks=[]
     for i in range(len(plot_object.segments)):
-        tasks.append(recap_segment(plot_object.segments[i].category, plot_object.segments[i].texts))
+        tasks.append(recap_segment(plot_object.segments[i].category, plot_object.segments[i].texts, model_name))
     responses_and_costs=await asyncio.gather(*tasks)
 
     # load the responses into the plot object
@@ -37,7 +38,7 @@ async def recap_segments(plot_object: data_processing.PlotObject):
 
 
 
-async def recap_abstraction(category, segment_recaps):
+async def recap_abstraction(category, segment_recaps, model_name):
     if segment_recaps==[]:
         return ""
 
@@ -48,10 +49,10 @@ Do not use any fluff, your response does not need to be gramatically correct. St
     for recap in segment_recaps:
         user_prompt+=recap+"\n"
     full_prompt=[{"role":"system", "content":system_prompt}, {"role":"user", "content":user_prompt}]
-    response, cost = await utils.async_response_handler(full_prompt, utils.ModelNameEnum.gpt_4o_mini)
+    response, cost = await utils.async_response_handler(full_prompt, model_name)
     return response, cost
 
-async def recap_abstractions(plot_object: data_processing.PlotObject):
+async def recap_abstractions(plot_object: data_processing.PlotObject, model_name=utils.ModelNameEnum.gpt_4o_mini):
     # Produce the abstraction recaps
     tasks=[]
     for key in list(plot_object.abstractions.keys()):
@@ -61,7 +62,7 @@ async def recap_abstractions(plot_object: data_processing.PlotObject):
             if segment.category==key:
                 temp_segment_recaps.append(segment.recap)
 
-        tasks.append(recap_abstraction(key, temp_segment_recaps))
+        tasks.append(recap_abstraction(key, temp_segment_recaps, model_name))
     responses_and_costs=await asyncio.gather(*tasks)
 
     # load the responses into the plot object

@@ -2,7 +2,7 @@ import os
 import asyncio
 import tiktoken
 from enum import Enum
-from . import async_openai_client, async_anthropic_client, groq_client
+from . import async_openai_client, async_anthropic_client, async_groq_client, groq_client
 
 
 
@@ -25,6 +25,9 @@ model_name_company_mapping={
 
     "llama-3.1-70b-versatile": "groq",
     "llama-3.1-8b-instant": "groq",
+    "llama-3.2-90b-vision-preview": "groq",
+    "llama3-70b-8192": "groq",
+    "llama-3.2-11b-vision-preview": "groq",
 }
 class ModelCompanyEnum(str, Enum):
     openai = "openai"
@@ -47,6 +50,9 @@ class ModelNameEnum(str, Enum):
 
     llama_3_1_70B_versatile="llama-3.1-70b-versatile"
     llama_3_1_8B_instant="llama-3.1-8b-instant"
+    llama_3_2_90B_vision_preview="llama-3.2-90b-vision-preview"
+    llama_3_70b_8192="llama3-70b-8192"
+    llama_3_2_11b_vision_preview="llama-3.2-11b-vision-preview"
 
 class ModelCostEnum(str, Enum):
     gpt_4_turbo = {"input": 10/1000000.0, "output": 30/1000000.0}
@@ -64,6 +70,10 @@ class ModelCostEnum(str, Enum):
 
     llama_3_1_70B_versatile = {"input": 0.59/1000000.0, "output": 0.79/1000000.0}
     llama_3_1_8B_instant = {"input": 0.2/1000000.0, "output": 0.3/1000000.0}
+    llama_3_2_90B_vision_preview = {"input": 0.89/1000000.0, "output": 0.89/1000000.0}
+    llama_3_70b_8192 = {"input": 0.59/1000000.0, "output": 0.79/1000000.0}
+    llama_3_2_11b_vision_preview = {"input": 0.89/1000000.0, "output": 0.89/1000000.0}
+    
 
 
 
@@ -80,7 +90,7 @@ async def async_response_handler(
 
     max_retries=1
 
-    for retry in range(max_retries):
+    for retry in range(0, max_retries):
         try:
             if model_company==ModelCompanyEnum.openai:
                 if max_tokens:
@@ -145,7 +155,7 @@ async def async_response_handler(
                 pass
 
                 
-                chat_completion = await groq_client.chat.completions.create(
+                chat_completion = await async_groq_client.chat.completions.create(
                     messages=prompt,
                     model=model_name,
                 )
@@ -209,3 +219,118 @@ async def generate_image(prompt):
         input=input,
     )
     return output
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Response Handler
+def streamed_response_handler(
+    prompt: dict,
+    model_name: str,
+    temp=0.0,
+    frequency_penalty=0,
+    presence_penalty=0,
+    max_tokens=None
+) -> tuple[str, float]:
+    model_company=model_name_company_mapping.get(model_name,None)
+
+    max_retries=1
+
+    for retry in range(0, max_retries):
+        try:
+            # if model_company==ModelCompanyEnum.openai:
+            #     if max_tokens:
+            #         response = await async_openai_client.chat.completions.create(
+            #                 model=model_name,
+            #                 messages=prompt,
+            #                 temperature=temp,
+            #                 top_p=1,
+            #                 frequency_penalty=frequency_penalty,
+            #                 presence_penalty=presence_penalty,
+            #             )
+            #     else:
+            #         response = await async_openai_client.chat.completions.create(
+            #                 model=model_name,
+            #                 messages=prompt,
+            #                 temperature=temp,
+            #                 top_p=1,
+            #                 frequency_penalty=frequency_penalty,
+            #                 presence_penalty=presence_penalty,
+            #                 max_tokens=max_tokens
+            #             )
+                
+            #     cost=prompt_and_response_cost(prompt, response.choices[0].message.content, model_name)
+
+            #     return response.choices[0].message.content, cost
+            
+            # elif model_company==ModelCompanyEnum.anthropic:
+            #     system_message=prompt[0]["content"]
+            #     response = await async_anthropic_client.messages.create(
+            #             model=model_name,
+            #             max_tokens=4000,
+            #             temperature=temp,
+            #             system=system_message,
+            #             messages=prompt[1:]
+            #         )
+                
+            #     cost=prompt_and_response_cost(prompt, response.content[0].text, model_name)
+
+            #     return response.content[0].text, cost
+            
+            if model_company==ModelCompanyEnum.google:
+                # Create the model
+                pass
+                # generation_config = {
+                #     "temperature": 1,
+                #     "top_p": 0.95,
+                #     "top_k": 64,
+                #     "max_output_tokens": 8192,
+                #     "response_mime_type": "text/plain",
+                # }
+                # model = genai.GenerativeModel(
+                #     model_name="gemini-1.5-flash",
+                #     generation_config=generation_config,
+                #     system_instruction=prompt[0]["content"],
+                # )
+                # response = await model.generate_content_async(prompt[1]["content"])
+                # cost=prompt_and_response_cost(prompt, response._result.candidates[0].content.parts[0].text, model_name)
+
+                # return response._result.candidates[0].content.parts[0].text, cost
+            
+            elif model_company==ModelCompanyEnum.groq:
+                
+                chat_completion = groq_client.chat.completions.create(
+                    messages=prompt,
+                    model=model_name,
+                    stream=True
+                )
+                for completion in chat_completion:
+                    # print(completion)
+                    # check if choice object has message attribute
+                    if (completion.choices[0].delta.content):
+                        print(completion.choices[0].delta.content, end="")
+
+                cost=prompt_and_response_cost(prompt, chat_completion.choices[0].message.content, model_name)
+
+                return chat_completion.choices[0].message.content, cost
+            break
+        except Exception as e:
+            if (retry+1)>=max_retries:
+                raise Exception(f"Error in async_response_handler after retry {retry}: ", e)
+    
+    raise Exception("Model not recognized")

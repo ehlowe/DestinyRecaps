@@ -11,7 +11,10 @@
 /serverproject/destinyapp/working_folder/transcripts/*.srt
 /serverproject/destinyapp/working_folder/mp4_2_mp3
 /serverproject/destinyapp/working_folder/test_transcript
+/serverproject/destinyapp/working_folder/test_transcripts
 /serverproject/destinyapp/working_folder/testing
+
+/serverproject/cookies.txt
 
 
 

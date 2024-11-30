@@ -14,8 +14,10 @@ async_anthropic_client=AsyncAnthropic(api_key=os.environ.get("anthropic",""))
 os.environ["REPLICATE_API_TOKEN"]=os.environ.get("replicate","")
 aai.settings.api_key=os.environ.get("assemblyai","")
 
+import groq
+groq_client=groq.Groq(api_key=os.environ.get("GROQ_API_KEY"))
 from groq import AsyncGroq
-groq_client=AsyncGroq(api_key=os.environ.get("GROQ_API_KEY"))
+async_groq_client=AsyncGroq(api_key=os.environ.get("GROQ_API_KEY"))
 
 
 # Api related utils
